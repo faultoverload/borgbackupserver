@@ -142,7 +142,7 @@
                 selectedList.appendChild(div);
             });
         }
-        
+
         // Update size estimation when selection changes
         updateDownloadSizeEstimate();
     }
@@ -633,56 +633,56 @@
     // ================================================================
     // Disk Space & Size Estimation
     // ================================================================
-    
+
     function updateStorageSpaceInfo() {
         const storageSelect = document.getElementById('download-storage-location');
         if (!storageSelect) return;
-        
+
         const locationId = storageSelect.value || '';
         const infoDiv = document.getElementById('storage-space-info');
-        
+
         let url = '/clients/' + agentId + '/storage-space';
         if (locationId) {
             url += '?location_id=' + locationId;
         }
-        
+
         fetch(url, { credentials: 'same-origin' })
             .then(r => r.json())
             .then(data => {
                 if (data.error) return;
-                
+
                 const label = document.getElementById('storage-location-label');
                 const freeEl = document.getElementById('storage-free-space');
                 const bar = document.getElementById('storage-bar');
-                
+
                 label.textContent = 'Storage: ' + data.location;
                 freeEl.textContent = 'Free: ' + data.free_gb + ' GB';
                 bar.style.width = data.percent_free + '%';
                 bar.className = 'progress-bar ' + (data.percent_free > 20 ? 'bg-success' : (data.percent_free > 10 ? 'bg-warning' : 'bg-danger'));
-                
+
                 infoDiv.style.display = '';
-                
+
                 // Re-check size estimation with new storage location
                 updateDownloadSizeEstimate();
             })
             .catch(() => { infoDiv.style.display = 'none'; });
     }
-    
+
     function updateDownloadSizeEstimate() {
         const archiveSelect = document.getElementById('archive-select');
         if (!archiveSelect || !archiveSelect.value) return;
-        
+
         const paths = currentMode === 'search-all' ? Array.from(selectedVersions.keys()) : Array.from(selectedPaths);
         if (paths.length === 0 && !entireArchiveSelected) {
             document.getElementById('download-size-info').style.display = 'none';
             return;
         }
-        
+
         const archiveId = archiveSelect.value;
         const sizeInfoDiv = document.getElementById('download-size-info');
         const sizeEl = document.getElementById('download-est-size');
         const warningEl = document.getElementById('download-space-warning');
-        
+
         if (entireArchiveSelected) {
             // For entire archive, show the archive size
             const archiveInfo = Array.from(archiveSelect.options).find(o => o.value == archiveId);
@@ -694,12 +694,12 @@
             }
             return;
         }
-        
+
         // Estimate size for selected files
         let url = '/clients/' + agentId + '/archive/' + archiveId + '/estimate-size?';
         const fileParams = paths.map(p => 'files[]=' + encodeURIComponent(p)).join('&');
         url += fileParams;
-        
+
         fetch(url, { credentials: 'same-origin' })
             .then(r => r.json())
             .then(data => {
@@ -707,27 +707,27 @@
                     sizeInfoDiv.style.display = 'none';
                     return;
                 }
-                
+
                 // Show uncompressed size, note extraction will be ~1.5x compressed
                 const estSize = Math.ceil(data.estimated_compressed_bytes * 1.5);
                 sizeEl.textContent = formatSize(estSize) + ' (est.)';
                 sizeInfoDiv.style.display = '';
-                
+
                 checkSpaceWarning(estSize);
             })
             .catch(() => { sizeInfoDiv.style.display = 'none'; });
     }
-    
+
     function checkSpaceWarning(requiredBytes) {
         const storageSelect = document.getElementById('download-storage-location');
         if (!storageSelect) return;
-        
+
         const locationId = storageSelect.value || '';
         let url = '/clients/' + agentId + '/storage-space';
         if (locationId) {
             url += '?location_id=' + locationId;
         }
-        
+
         fetch(url, { credentials: 'same-origin' })
             .then(r => r.json())
             .then(data => {
@@ -743,7 +743,7 @@
                 }
             });
     }
-    
+
     // Storage location change handler
     const storageSelect = document.getElementById('download-storage-location');
     if (storageSelect) {

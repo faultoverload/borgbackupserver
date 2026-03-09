@@ -1266,7 +1266,7 @@ class ClientController extends Controller
 
         // Create temp directory for extraction
         $tmpDir = $tmpBaseDir . '/bbs-download-' . bin2hex(random_bytes(8));
-        
+
         // Check disk space before extraction (estimate based on archive size)
         $estimatedSize = (int) ($archive['original_size'] ?? 0) * 1.5; // 150% to account for uncompressed + tar overhead
         if ($estimatedSize > 0) {
