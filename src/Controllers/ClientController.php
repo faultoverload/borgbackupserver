@@ -1188,6 +1188,7 @@ class ClientController extends Controller
     /**
      * POST /clients/{id}/download
      * Extracts selected paths from a borg archive on the server and streams as tar.gz.
+     * Validates disk space in the target storage location before extraction.
      */
     public function download(int $id): void
     {
@@ -1204,6 +1205,7 @@ class ClientController extends Controller
         $this->requirePermission(PermissionService::RESTORE, $id);
 
         $archive_id = (int) ($_POST['archive_id'] ?? 0);
+        $storageLocationId = !empty($_POST['storage_location_id']) ? (int) $_POST['storage_location_id'] : null;
         $selectedFiles = $_POST['files'] ?? [];
 
         if (!$archive_id) {
@@ -1229,6 +1231,25 @@ class ClientController extends Controller
             $this->redirect("/clients/{$id}?tab=restore");
         }
 
+        // Determine storage location for temp directory
+        $tmpBaseDir = sys_get_temp_dir();
+        if ($storageLocationId) {
+            $storageLocation = $this->db->fetchOne("SELECT * FROM storage_locations WHERE id = ?", [$storageLocationId]);
+            if ($storageLocation) {
+                if ($storageLocation['type'] === 'local' && !empty($storageLocation['path'])) {
+                    if (is_dir($storageLocation['path']) && is_writable($storageLocation['path'])) {
+                        $tmpBaseDir = $storageLocation['path'];
+                    } else {
+                        $this->flash('danger', 'Storage location is not accessible or writable.');
+                        $this->redirect("/clients/{$id}?tab=restore");
+                    }
+                } else {
+                    $this->flash('danger', 'Storage location must be local and configured.');
+                    $this->redirect("/clients/{$id}?tab=restore");
+                }
+            }
+        }
+
         // Build environment — server-side execution uses local paths
         $repo = [
             'path' => $archive['repo_path'],
@@ -1244,7 +1265,24 @@ class ClientController extends Controller
         $env = \BBS\Services\BorgCommandBuilder::buildEnv($repo, false);
 
         // Create temp directory for extraction
-        $tmpDir = sys_get_temp_dir() . '/bbs-download-' . bin2hex(random_bytes(8));
+        $tmpDir = $tmpBaseDir . '/bbs-download-' . bin2hex(random_bytes(8));
+        
+        // Check disk space before extraction (estimate based on archive size)
+        $estimatedSize = (int) ($archive['size'] ?? 0) * 1.5; // 150% to account for compressed→uncompressed + tar overhead
+        if ($estimatedSize > 0) {
+            $availableSpace = disk_free_space($tmpBaseDir);
+            if ($availableSpace === false) {
+                $this->flash('danger', 'Unable to check available disk space.');
+                $this->redirect("/clients/{$id}?tab=restore");
+            }
+            if ($availableSpace < $estimatedSize) {
+                $requiredMB = ceil($estimatedSize / (1024 * 1024));
+                $availableMB = floor($availableSpace / (1024 * 1024));
+                $this->flash('danger', "Insufficient disk space. Need ~{$requiredMB}MB, have {$availableMB}MB available.");
+                $this->redirect("/clients/{$id}?tab=restore");
+            }
+        }
+
         mkdir($tmpDir, 0700, true);
 
         $remoteSshKeyFile = null; // Track temp SSH key for cleanup

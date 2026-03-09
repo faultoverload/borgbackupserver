@@ -617,6 +617,11 @@
             ? 'Download the entire archive as a .tar.gz?'
             : 'Download ' + count + ' path(s) as a .tar.gz archive?';
         confirmAction(msg, function() {
+            // Set storage location before form submission
+            const storageSelect = document.getElementById('download-storage-location');
+            if (storageSelect) {
+                document.getElementById('download-storage-location-id').value = storageSelect.value || '';
+            }
             fillFormAndSubmit('download-form', 'download-archive-id', 'download-files-container', null);
         });
     });

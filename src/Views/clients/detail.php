@@ -2866,6 +2866,22 @@ GRANT ALL PRIVILEGES ON DATABASE mydb TO <span id="pgUser2g">bbs_backup</span>;<
                     <label class="form-label small fw-semibold mb-1">Destination (optional)</label>
                     <input type="text" class="form-control form-control-sm" id="restore-destination" placeholder="Leave blank for original paths">
                 </div>
+                <div class="mb-2">
+                    <label class="form-label small fw-semibold mb-1">Download Storage Location</label>
+                    <select class="form-select form-select-sm" id="download-storage-location">
+                        <option value="">Default (/var/bbs/tmp)</option>
+                        <?php if (!empty($storageLocations)): ?>
+                            <?php foreach ($storageLocations as $loc): ?>
+                            <?php if ($loc['type'] === 'local'): ?>
+                            <option value="<?= $loc['id'] ?>" title="<?= htmlspecialchars($loc['path'] ?? '') ?>">
+                                <?= htmlspecialchars($loc['label'] ?? 'Unknown') ?>
+                            </option>
+                            <?php endif; ?>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </select>
+                    <div class="form-text small">Downloads will be temporarily stored here before streaming</div>
+                </div>
                 <div class="d-flex gap-2">
                     <button class="btn btn-success flex-fill" id="restore-btn" disabled>
                         <i class="bi bi-arrow-counterclockwise me-1"></i> Restore to Client
@@ -2888,6 +2904,7 @@ GRANT ALL PRIVILEGES ON DATABASE mydb TO <span id="pgUser2g">bbs_backup</span>;<
     <form id="download-form" method="POST" action="/clients/<?= $agent['id'] ?>/download" style="display:none;">
         <input type="hidden" name="csrf_token" value="<?= $this->csrfToken() ?>">
         <input type="hidden" name="archive_id" id="download-archive-id">
+        <input type="hidden" name="storage_location_id" id="download-storage-location-id">
         <div id="download-files-container"></div>
     </form>
     </div><!-- end files-restore-section -->
