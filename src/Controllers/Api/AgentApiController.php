@@ -264,6 +264,38 @@ class AgentApiController extends Controller
             $this->json(['error' => 'Job not found'], 404);
         }
 
+        // Update repository status for check jobs BEFORE idempotency check
+        // This ensures status is updated even for re-reported jobs
+        if (in_array($job['task_type'], ['check', 'repo_check']) && $job['repository_id']) {
+            if ($result === 'completed') {
+                // Check succeeded - mark repository as ok
+                $this->db->update('repositories', [
+                    'status' => 'ok',
+                    'status_message' => null,
+                    'last_checked_at' => date('Y-m-d H:i:s'),
+                ], 'id = ?', [$job['repository_id']]);
+            } elseif ($result === 'failed') {
+                // Check failed - examine error and set appropriate status
+                $errorLog = $input['error_log'] ?? '';
+                $status = 'error';
+                $statusMsg = 'Repository check failed';
+
+                // Detect missing repository
+                if (stripos($errorLog, 'does not exist') !== false ||
+                    stripos($errorLog, 'not found') !== false ||
+                    stripos($errorLog, 'cannot access') !== false ||
+                    stripos($errorLog, 'no such file') !== false) {
+                    $statusMsg = 'Repository files missing or inaccessible';
+                }
+
+                $this->db->update('repositories', [
+                    'status' => $status,
+                    'status_message' => $statusMsg,
+                    'last_checked_at' => date('Y-m-d H:i:s'),
+                ], 'id = ?', [$job['repository_id']]);
+            }
+        }
+
         // Idempotency: if job is already in a terminal state, return OK without
         // re-processing (prevents duplicate archives, notifications on retry)
         if (in_array($job['status'], ['completed', 'failed', 'cancelled'])) {
@@ -499,37 +531,8 @@ class AgentApiController extends Controller
 
             case 'check':
             case 'repo_check':
-                if ($result === 'completed') {
-                    // Check completed successfully - update repository status to 'ok'
-                    if ($job['repository_id']) {
-                        $this->db->update('repositories', [
-                            'status' => 'ok',
-                            'status_message' => null,
-                            'last_checked_at' => date('Y-m-d H:i:s'),
-                        ], 'id = ?', [$job['repository_id']]);
-                    }
-                } elseif ($result === 'failed') {
-                    // Check failed - examine error to determine status
-                    $errorLog = $input['error_log'] ?? '';
-                    $status = 'error';
-                    $statusMsg = 'Repository check failed';
-
-                    // Detect missing repository
-                    if (stripos($errorLog, 'does not exist') !== false ||
-                        stripos($errorLog, 'not found') !== false ||
-                        stripos($errorLog, 'cannot access') !== false ||
-                        stripos($errorLog, 'no such file') !== false) {
-                        $statusMsg = 'Repository files missing or inaccessible';
-                    }
-
-                    if ($job['repository_id']) {
-                        $this->db->update('repositories', [
-                            'status' => $status,
-                            'status_message' => $statusMsg,
-                            'last_checked_at' => date('Y-m-d H:i:s'),
-                        ], 'id = ?', [$job['repository_id']]);
-                    }
-
+                if ($result === 'failed') {
+                    // Repository check failed - send notification
                     $notificationService->notify(
                         'repo_check_failed',
                         $agent['id'],
