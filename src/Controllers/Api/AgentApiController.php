@@ -498,7 +498,38 @@ class AgentApiController extends Controller
                 break;
 
             case 'check':
-                if ($result === 'failed') {
+            case 'repo_check':
+                if ($result === 'completed') {
+                    // Check completed successfully - update repository status to 'ok'
+                    if ($job['repository_id']) {
+                        $this->db->update('repositories', [
+                            'status' => 'ok',
+                            'status_message' => null,
+                            'last_checked_at' => date('Y-m-d H:i:s'),
+                        ], 'id = ?', [$job['repository_id']]);
+                    }
+                } elseif ($result === 'failed') {
+                    // Check failed - examine error to determine status
+                    $errorLog = $input['error_log'] ?? '';
+                    $status = 'error';
+                    $statusMsg = 'Repository check failed';
+                    
+                    // Detect missing repository
+                    if (stripos($errorLog, 'does not exist') !== false ||
+                        stripos($errorLog, 'not found') !== false ||
+                        stripos($errorLog, 'cannot access') !== false ||
+                        stripos($errorLog, 'no such file') !== false) {
+                        $statusMsg = 'Repository files missing or inaccessible';
+                    }
+                    
+                    if ($job['repository_id']) {
+                        $this->db->update('repositories', [
+                            'status' => $status,
+                            'status_message' => $statusMsg,
+                            'last_checked_at' => date('Y-m-d H:i:s'),
+                        ], 'id = ?', [$job['repository_id']]);
+                    }
+                    
                     $notificationService->notify(
                         'repo_check_failed',
                         $agent['id'],

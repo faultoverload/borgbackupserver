@@ -153,6 +153,9 @@ CREATE TABLE repositories (
     archive_count INT NOT NULL DEFAULT 0,
     borg_version_created VARCHAR(20) DEFAULT NULL,
     borg_version_last VARCHAR(20) DEFAULT NULL,
+    status ENUM('ok', 'warning', 'error') NOT NULL DEFAULT 'ok',
+    status_message VARCHAR(255) DEFAULT NULL,
+    last_checked_at DATETIME DEFAULT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (agent_id) REFERENCES agents(id) ON DELETE CASCADE,
     FOREIGN KEY (storage_location_id) REFERENCES storage_locations(id)

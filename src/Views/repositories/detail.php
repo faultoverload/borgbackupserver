@@ -27,7 +27,26 @@ $sizeLabel = $totalSize >= 1073741824 ? round($totalSize / 1073741824, 1) . ' GB
                     <?php else: ?>
                     <span class="badge bg-secondary ms-2" style="font-size: 0.6em; vertical-align: middle;"><i class="bi bi-hdd me-1"></i>Local</span>
                     <?php endif; ?>
+                    <?php if (($repo['status'] ?? 'ok') === 'error'): ?>
+                    <span class="badge bg-danger ms-2" style="font-size: 0.6em; vertical-align: middle;" title="<?= htmlspecialchars($repo['status_message'] ?? 'Repository error') ?>">
+                        <i class="bi bi-exclamation-triangle-fill me-1"></i>Error
+                    </span>
+                    <?php elseif (($repo['status'] ?? 'ok') === 'warning'): ?>
+                    <span class="badge bg-warning ms-2" style="font-size: 0.6em; vertical-align: middle;" title="<?= htmlspecialchars($repo['status_message'] ?? 'Repository warning') ?>">
+                        <i class="bi bi-exclamation-circle-fill me-1"></i>Warning
+                    </span>
+                    <?php endif; ?>
                 </h4>
+                <?php if (($repo['status'] ?? 'ok') !== 'ok' && !empty($repo['status_message'])): ?>
+                <div class="alert alert-<?= $repo['status'] === 'error' ? 'danger' : 'warning' ?> mt-2 mb-0 py-2 px-3">
+                    <i class="bi bi-<?= $repo['status'] === 'error' ? 'exclamation-triangle' : 'exclamation-circle' ?>-fill me-1"></i>
+                    <strong><?= $repo['status'] === 'error' ? 'Error:' : 'Warning:' ?></strong> 
+                    <?= htmlspecialchars($repo['status_message']) ?>
+                    <?php if ($repo['last_checked_at']): ?>
+                    <span class="text-muted small">(Last checked: <?= \BBS\Core\TimeHelper::ago($repo['last_checked_at']) ?>)</span>
+                    <?php endif; ?>
+                </div>
+                <?php endif; ?>
             </div>
             <?php if ($activeJob): ?>
             <span class="badge bg-info"><i class="bi bi-hourglass-split me-1"></i>Active: <?= $activeJob['task_type'] ?></span>

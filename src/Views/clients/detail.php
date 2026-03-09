@@ -753,7 +753,18 @@ $sizeDisplay = $totalSize >= 1073741824 ? round($totalSize / 1073741824, 1) . ' 
                             <span class="schedule-id"><?= $isRemoteRepo ? 'Remote' : 'Local' ?></span>
                         </div>
                         <div class="flex-grow-1 min-width-0">
-                            <h6 class="mb-1 fw-bold"><?= htmlspecialchars($repo['name']) ?></h6>
+                            <h6 class="mb-1 fw-bold">
+                                <?= htmlspecialchars($repo['name']) ?>
+                                <?php if (($repo['status'] ?? 'ok') === 'error'): ?>
+                                    <span class="badge bg-danger ms-1" title="<?= htmlspecialchars($repo['status_message'] ?? 'Repository error') ?>">
+                                        <i class="bi bi-exclamation-triangle-fill"></i> Error
+                                    </span>
+                                <?php elseif (($repo['status'] ?? 'ok') === 'warning'): ?>
+                                    <span class="badge bg-warning ms-1" title="<?= htmlspecialchars($repo['status_message'] ?? 'Repository warning') ?>">
+                                        <i class="bi bi-exclamation-circle-fill"></i> Warning
+                                    </span>
+                                <?php endif; ?>
+                            </h6>
                             <div class="small text-muted">
                                 <i class="bi bi-hdd me-1"></i><?= $sizeLabel ?>
                             </div>

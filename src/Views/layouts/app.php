@@ -278,7 +278,19 @@
         if (form.hasAttribute('data-confirm-danger')) opts = {danger:true, btnClass:'danger', okText:'Delete'};
         confirmAction(msg, function() {
             form.removeAttribute('data-confirm');
-            form.requestSubmit ? form.requestSubmit() : form.submit();
+            // Create and append a hidden input to mark as confirmed
+            var confirmed = document.createElement('input');
+            confirmed.type = 'hidden';
+            confirmed.name = '_confirmed';
+            confirmed.value = '1';
+            form.appendChild(confirmed);
+            // Use requestSubmit if available (fires submit event), otherwise submit directly
+            if (form.requestSubmit) {
+                form.requestSubmit();
+            } else {
+                // For older browsers, use HTMLFormElement.prototype.submit to bypass event handlers
+                HTMLFormElement.prototype.submit.call(form);
+            }
         }, opts);
     });
     document.addEventListener('click', function(e) {
@@ -293,7 +305,18 @@
         if (form) {
             confirmAction(msg, function() {
                 btn.removeAttribute('data-confirm');
-                form.requestSubmit ? form.requestSubmit() : form.submit();
+                form.removeAttribute('data-confirm');
+                // Create and append a hidden input to mark as confirmed
+                var confirmed = document.createElement('input');
+                confirmed.type = 'hidden';
+                confirmed.name = '_confirmed';
+                confirmed.value = '1';
+                form.appendChild(confirmed);
+                if (form.requestSubmit) {
+                    form.requestSubmit();
+                } else {
+                    HTMLFormElement.prototype.submit.call(form);
+                }
             }, opts);
         } else {
             confirmAction(msg, function() { btn.removeAttribute('data-confirm'); btn.click(); }, opts);
