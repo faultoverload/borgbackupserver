@@ -2739,7 +2739,7 @@ GRANT ALL PRIVILEGES ON DATABASE mydb TO <span id="pgUser2g">bbs_backup</span>;<
                             echo '<optgroup label="' . htmlspecialchars($currentRepo) . '">';
                         endif;
                     ?>
-                        <option value="<?= $ar['id'] ?>">
+                        <option value="<?= $ar['id'] ?>" data-size="<?= (int)($ar['original_size'] ?? 0) ?>">
                             <?= \BBS\Core\TimeHelper::format($ar['created_at'], 'l, M j, Y \a\t g:i A') ?>
                         </option>
                     <?php endforeach; ?>
@@ -2881,6 +2881,21 @@ GRANT ALL PRIVILEGES ON DATABASE mydb TO <span id="pgUser2g">bbs_backup</span>;<
                         <?php endif; ?>
                     </select>
                     <div class="form-text small">Downloads will be temporarily stored here before streaming</div>
+                    <div class="mt-2 p-2 bg-body border rounded small" id="storage-space-info" style="display:none;">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span id="storage-location-label">Storage: --</span>
+                            <span id="storage-free-space">Free: --</span>
+                        </div>
+                        <div class="progress" style="height: 6px;">
+                            <div class="progress-bar" id="storage-bar" role="progressbar" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    <div class="mt-2 p-2 bg-light border rounded small" id="download-size-info" style="display:none;">
+                        <div class="d-flex justify-content-between">
+                            <span>Estimated size: <strong id="download-est-size">--</strong></span>
+                            <span id="download-space-warning" class="text-danger" style="display:none;">⚠ Insufficient space</span>
+                        </div>
+                    </div>
                 </div>
                 <div class="d-flex gap-2">
                     <button class="btn btn-success flex-fill" id="restore-btn" disabled>

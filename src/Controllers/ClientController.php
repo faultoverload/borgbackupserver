@@ -1268,7 +1268,7 @@ class ClientController extends Controller
         $tmpDir = $tmpBaseDir . '/bbs-download-' . bin2hex(random_bytes(8));
         
         // Check disk space before extraction (estimate based on archive size)
-        $estimatedSize = (int) ($archive['size'] ?? 0) * 1.5; // 150% to account for compressed→uncompressed + tar overhead
+        $estimatedSize = (int) ($archive['original_size'] ?? 0) * 1.5; // 150% to account for uncompressed + tar overhead
         if ($estimatedSize > 0) {
             $availableSpace = disk_free_space($tmpBaseDir);
             if ($availableSpace === false) {
@@ -1426,6 +1426,133 @@ class ClientController extends Controller
         }
 
         exit;
+    }
+
+    /**
+     * GET /clients/{id}/storage-space?location_id=X
+     * Returns available disk space and usage for a storage location (JSON).
+     * Defaults to system temp directory if no location_id specified.
+     */
+    public function storageSpace(int $id): void
+    {
+        $this->requireAuth();
+
+        $agent = $this->getAgent($id);
+        if (!$agent) {
+            $this->json(['error' => 'Client not found'], 404);
+            return;
+        }
+
+        $locationId = !empty($_GET['location_id']) ? (int) $_GET['location_id'] : null;
+        $basePath = sys_get_temp_dir();
+        $locationLabel = 'Default (system temp)';
+
+        if ($locationId) {
+            $location = $this->db->fetchOne("SELECT * FROM storage_locations WHERE id = ?", [$locationId]);
+            if (!$location || $location['type'] !== 'local' || empty($location['path'])) {
+                $this->json(['error' => 'Invalid storage location'], 400);
+                return;
+            }
+            if (!is_dir($location['path']) || !is_readable($location['path'])) {
+                $this->json(['error' => 'Storage location not accessible'], 400);
+                return;
+            }
+            $basePath = $location['path'];
+            $locationLabel = $location['label'] ?? 'Unknown';
+        }
+
+        $free = disk_free_space($basePath);
+        $total = disk_total_space($basePath);
+
+        if ($free === false || $total === false) {
+            $this->json(['error' => 'Unable to determine disk space'], 500);
+            return;
+        }
+
+        $this->json([
+            'location' => $locationLabel,
+            'path' => $basePath,
+            'free_bytes' => $free,
+            'total_bytes' => $total,
+            'used_bytes' => $total - $free,
+            'free_mb' => round($free / (1024 * 1024), 1),
+            'free_gb' => round($free / (1024 * 1024 * 1024), 2),
+            'percent_free' => round(($free / $total) * 100, 1),
+        ]);
+    }
+
+    /**
+     * GET /clients/{id}/archive/{archive_id}/estimate-size
+     * Estimates total size of selected files in an archive.
+     * POST params: file_paths[] (array of file paths)
+     * Returns estimated sizes in bytes and MB.
+     */
+    public function estimateDownloadSize(int $id, int $archive_id): void
+    {
+        $this->requireAuth();
+
+        $agent = $this->getAgent($id);
+        if (!$agent) {
+            $this->json(['error' => 'Client not found'], 404);
+            return;
+        }
+
+        // Verify archive exists and user can access it
+        $archive = $this->db->fetchOne("
+            SELECT ar.*, r.agent_id
+            FROM archives ar
+            JOIN repositories r ON r.id = ar.repository_id
+            WHERE ar.id = ? AND r.agent_id = ?
+        ", [$archive_id, $id]);
+
+        if (!$archive) {
+            $this->json(['error' => 'Archive not found'], 404);
+            return;
+        }
+
+        $selectedFiles = $_GET['files'] ?? [];
+        if (empty($selectedFiles)) {
+            $this->json(['uncompressed_bytes' => 0, 'uncompressed_mb' => 0, 'estimated_bytes' => 0, 'estimated_mb' => 0]);
+            return;
+        }
+
+        // Ensure array
+        if (is_string($selectedFiles)) {
+            $selectedFiles = [$selectedFiles];
+        }
+
+        try {
+            $ch = \BBS\Core\ClickHouse::getInstance();
+
+            // Sum file sizes for selected paths
+            $totalSize = 0;
+            foreach ($selectedFiles as $filePath) {
+                $filePath = trim($filePath);
+                if (empty($filePath)) continue;
+
+                $result = $ch->fetchOne(
+                    "SELECT sum(file_size) as total_size FROM file_catalog WHERE agent_id = ? AND archive_id = ? AND path = ?",
+                    [$id, $archive_id, $filePath]
+                );
+
+                if ($result && $result['total_size']) {
+                    $totalSize += (int) $result['total_size'];
+                }
+            }
+
+            // Estimate compressed size (depends on file type; assume 40% of uncompressed for mixed data)
+            $estimatedCompressed = (int) ($totalSize * 0.4);
+
+            $this->json([
+                'uncompressed_bytes' => $totalSize,
+                'uncompressed_mb' => round($totalSize / (1024 * 1024), 1),
+                'estimated_compressed_bytes' => $estimatedCompressed,
+                'estimated_compressed_mb' => round($estimatedCompressed / (1024 * 1024), 1),
+                'file_count' => count($selectedFiles),
+            ]);
+        } catch (\Exception $e) {
+            $this->json(['error' => 'Unable to estimate size: ' . $e->getMessage()], 500);
+        }
     }
 
     private function removeDir(string $dir): void

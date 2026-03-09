@@ -233,6 +233,8 @@ class App
         // Catalog & Restore (client-facing)
         $this->router->map('GET', '/clients/[i:id]/catalog/[i:archive_id]', 'ClientController@catalog');
         $this->router->map('GET', '/clients/[i:id]/catalog/[i:archive_id]/tree', 'ClientController@catalogTree');
+        $this->router->map('GET', '/clients/[i:id]/storage-space', 'ClientController@storageSpace');
+        $this->router->map('GET', '/clients/[i:id]/archive/[i:archive_id]/estimate-size', 'ClientController@estimateDownloadSize');
         $this->router->map('GET', '/clients/[i:id]/catalog/search-all', 'ClientController@catalogSearchAll');
         $this->router->map('POST', '/clients/[i:id]/restore', 'ClientController@restoreSubmit');
         $this->router->map('POST', '/clients/[i:id]/restore-mysql', 'ClientController@restoreMysqlSubmit');
