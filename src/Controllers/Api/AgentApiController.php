@@ -513,7 +513,7 @@ class AgentApiController extends Controller
                     $errorLog = $input['error_log'] ?? '';
                     $status = 'error';
                     $statusMsg = 'Repository check failed';
-                    
+
                     // Detect missing repository
                     if (stripos($errorLog, 'does not exist') !== false ||
                         stripos($errorLog, 'not found') !== false ||
@@ -521,7 +521,7 @@ class AgentApiController extends Controller
                         stripos($errorLog, 'no such file') !== false) {
                         $statusMsg = 'Repository files missing or inaccessible';
                     }
-                    
+
                     if ($job['repository_id']) {
                         $this->db->update('repositories', [
                             'status' => $status,
@@ -529,7 +529,7 @@ class AgentApiController extends Controller
                             'last_checked_at' => date('Y-m-d H:i:s'),
                         ], 'id = ?', [$job['repository_id']]);
                     }
-                    
+
                     $notificationService->notify(
                         'repo_check_failed',
                         $agent['id'],

@@ -40,7 +40,7 @@ $sizeLabel = $totalSize >= 1073741824 ? round($totalSize / 1073741824, 1) . ' GB
                 <?php if (($repo['status'] ?? 'ok') !== 'ok' && !empty($repo['status_message'])): ?>
                 <div class="alert alert-<?= $repo['status'] === 'error' ? 'danger' : 'warning' ?> mt-2 mb-0 py-2 px-3">
                     <i class="bi bi-<?= $repo['status'] === 'error' ? 'exclamation-triangle' : 'exclamation-circle' ?>-fill me-1"></i>
-                    <strong><?= $repo['status'] === 'error' ? 'Error:' : 'Warning:' ?></strong> 
+                    <strong><?= $repo['status'] === 'error' ? 'Error:' : 'Warning:' ?></strong>
                     <?= htmlspecialchars($repo['status_message']) ?>
                     <?php if ($repo['last_checked_at']): ?>
                     <span class="text-muted small">(Last checked: <?= \BBS\Core\TimeHelper::ago($repo['last_checked_at']) ?>)</span>
